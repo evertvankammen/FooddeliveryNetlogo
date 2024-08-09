@@ -42,6 +42,7 @@ globals[
   discarded_this_tick
   chance_of_this_tick
   prev_chance_of_this_tick
+  setup-complete
 ]
 
 breed [ deliverers deliverer ]
@@ -138,6 +139,10 @@ to setup
 end
 
 to go
+  ifelse setup-complete? > 0 [
+
+
+
   update_time
   set ordered_this_tick 0
   set delivered_this_tick 0
@@ -155,7 +160,13 @@ to go
 
   set prev_chance_of_this_tick chance_of_this_tick
   tick
+  ]
+  [
+    error-message "run setup first"
+  ]
+
 end
+
 
 to export_all
   ;;export-world user-new-file
@@ -1099,10 +1110,10 @@ ticks
 30.0
 
 BUTTON
-61
-18
-124
-51
+85
+12
+148
+45
 NIL
 go
 T
@@ -1116,10 +1127,10 @@ NIL
 1
 
 BUTTON
-59
-62
-122
-95
+7
+11
+70
+44
 NIL
 setup
 NIL
@@ -1134,9 +1145,9 @@ NIL
 
 SLIDER
 6
-203
+97
 178
-236
+130
 number-of-restaurants
 number-of-restaurants
 1
@@ -1148,10 +1159,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-6
-239
-179
-272
+5
+139
+178
+172
 number-of-customers
 number-of-customers
 0
@@ -1163,10 +1174,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-6
-276
-178
-309
+5
+184
+177
+217
 number-of-deliverers
 number-of-deliverers
 1
@@ -1178,10 +1189,10 @@ NIL
 HORIZONTAL
 
 PLOT
-753
-11
-1340
-218
+751
+10
+1338
+167
 delivered
 NIL
 NIL
@@ -1207,10 +1218,10 @@ time_formatted
 11
 
 PLOT
-754
-235
-1341
-529
+752
+175
+1339
+323
 ordered
 NIL
 NIL
@@ -1225,20 +1236,20 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot total_ordered"
 
 CHOOSER
-13
-427
-151
-472
+5
+364
+143
+409
 order_frequency
 order_frequency
 "once a day" "once a week"
 1
 
 SLIDER
-7
-310
-179
-343
+5
+229
+177
+262
 prepair_time_mean
 prepair_time_mean
 5
@@ -1250,10 +1261,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-6
-382
-178
-415
+5
+319
+177
+352
 wait_for_deliverer
 wait_for_deliverer
 10
@@ -1265,10 +1276,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-7
-347
-179
-380
+5
+274
+177
+307
 prepair_time_stdev
 prepair_time_stdev
 0
@@ -1279,28 +1290,11 @@ prepair_time_stdev
 NIL
 HORIZONTAL
 
-BUTTON
-60
-120
-170
-153
-NIL
-export_all
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
 PLOT
-755
-540
-1343
-713
+752
+329
+1340
+502
 total_discarded
 NIL
 NIL
@@ -1315,10 +1309,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot total_discarded"
 
 CHOOSER
-15
-484
-172
-529
+5
+419
+162
+464
 distribution_method
 distribution_method
 "nearest_meal" "nearest_deliverer" "equaly_destributed"
