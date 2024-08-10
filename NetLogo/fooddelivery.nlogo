@@ -43,6 +43,10 @@ globals[
   chance_of_this_tick
   prev_chance_of_this_tick
   setup-complete
+  weeknumber
+  delivered_per_week
+  average_number_deliveries_per_week
+
 ]
 
 breed [ deliverers deliverer ]
@@ -56,6 +60,7 @@ deliverers-own[
   meal_nr
   time-active
   number-delivered
+  number-delivered-past-week
   total-earnings
   prev-intersection
   decide_on_x?
@@ -135,6 +140,8 @@ to setup
   print (word "number-of-deliverers " number-of-deliverers)
   print (word "prepair_time_mean " prepair_time_mean )
   print (word "wait_for_deliverer " wait_for_deliverer )
+  print (word "order_frequency "  order_frequency)
+  print (word "distribution_method " distribution_method)
 
 end
 
@@ -196,6 +203,14 @@ to update_time
       set delivered_past_hour  (total-delivered - total_delivered_prev)
       set total_delivered_prev total-delivered
   ]
+
+  if ticks > 0  and (remainder ticks (60 * 24 * 7)) = 0 [
+    print "week is past"
+    set average_number_deliveries_per_week  (delivered_per_week / (count deliverers))
+    set weeknumber (weeknumber  + 1)
+    set delivered_per_week 0
+  ]
+
 end
 
 
@@ -329,10 +344,18 @@ to deliverer-behavior
     find-a-delivery  ;; distribution of meals
   ]
 
-  if is-free? and distribution_method = "equaly_destributed" [
+  if is-free? and distribution_method = "equally_distributed" [
     if lowest_number_deliverd = number-delivered [
       find-a-delivery
     ]
+  ]
+
+  if ticks > 0 and (remainder ticks (60 * 24 * 7)) = 0 [
+    if number-delivered-past-week < 15 [
+      die
+    ]
+    set number-delivered-past-week 0
+
   ]
 
 
@@ -416,6 +439,9 @@ to deliverer-behavior
       set is-free?  true
       set color white
       set delivered_this_tick ( delivered_this_tick + 1)
+      set number-delivered-past-week (number-delivered-past-week + 1)
+
+      set delivered_per_week  (delivered_per_week + 1)
       set total-delivered total-delivered + 1
       set number-delivered number-delivered + 1
       let lowest_number_deliverd-prev lowest_number_deliverd
@@ -1091,8 +1117,8 @@ end
 GRAPHICS-WINDOW
 215
 19
-874
-679
+873
+678
 -1
 -1
 10.0
@@ -1173,7 +1199,7 @@ number-of-customers
 number-of-customers
 0
 1000
-430.0
+500.0
 10
 1
 NIL
@@ -1188,18 +1214,18 @@ number-of-deliverers
 number-of-deliverers
 1
 80
-15.0
+20.0
 1
 1
 NIL
 HORIZONTAL
 
 PLOT
-1397
-23
-1984
-180
-delivered
+889
+21
+1476
+178
+delivered per day
 NIL
 NIL
 0.0
@@ -1210,13 +1236,13 @@ true
 false
 "" ""
 PENS
-"default" 60.0 1 -16777216 true "" "plot total-delivered"
+"default" 60.0 0 -16777216 true "" "plot total-delivered"
 
 MONITOR
-1497
-614
-1641
-659
+892
+537
+1036
+582
 time past (days h:mm)
 time_formatted
 2
@@ -1224,11 +1250,11 @@ time_formatted
 11
 
 PLOT
-1398
-188
-1985
-336
-ordered
+890
+186
+1477
+334
+ordered per day
 NIL
 NIL
 0.0
@@ -1275,7 +1301,7 @@ wait_for_deliverer
 wait_for_deliverer
 10
 150
-30.0
+90.0
 1
 1
 NIL
@@ -1297,11 +1323,11 @@ NIL
 HORIZONTAL
 
 PLOT
-1398
-342
-1986
-515
-total_discarded
+890
+340
+1478
+513
+discarded per day
 NIL
 NIL
 0.0
@@ -1321,8 +1347,92 @@ CHOOSER
 464
 distribution_method
 distribution_method
-"nearest_meal" "nearest_deliverer" "equaly_destributed"
+"nearest_meal" "nearest_deliverer" "equally_distributed"
 0
+
+MONITOR
+897
+596
+1001
+641
+NIL
+count deliverers
+17
+1
+11
+
+MONITOR
+1010
+597
+1118
+642
+NIL
+count customers
+17
+1
+11
+
+MONITOR
+1124
+596
+1237
+641
+NIL
+count restaurants
+17
+1
+11
+
+MONITOR
+1243
+595
+1325
+640
+NIL
+count meals
+17
+1
+11
+
+MONITOR
+1044
+537
+1130
+582
+NIL
+weeknumber
+17
+1
+11
+
+MONITOR
+1222
+542
+1453
+587
+NIL
+average_number_deliveries_per_week
+17
+1
+11
+
+PLOT
+891
+406
+1476
+556
+average_number_deliveries_per_week
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot average_number_deliveries_per_week"
 
 @#$#@#$#@
 ## WHAT IS IT?
