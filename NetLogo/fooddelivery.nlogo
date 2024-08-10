@@ -129,7 +129,7 @@ to setup
   setup-restaurants
   setup-customers
   reset-ticks
-
+  set setup-complete 1
   print (word "number-of-restaurants " number-of-restaurants)
   print (word "number-of-customers " number-of-customers )
   print (word "number-of-deliverers " number-of-deliverers)
@@ -139,7 +139,7 @@ to setup
 end
 
 to go
-  ifelse setup-complete? > 0 [
+  ifelse setup-complete > 0 [
 
 
 
@@ -162,7 +162,7 @@ to go
   tick
   ]
   [
-    error-message "run setup first"
+    error "run setup first"
   ]
 
 end
@@ -501,6 +501,11 @@ to customer-behavior
 
   set happiness happiness_loc
   set label happiness
+
+  ifelse order-outstanding? [
+   set color red
+  ]
+  [
   if happiness >= 0 and happiness < 4 [
     set color 106 - happiness
   ]
@@ -511,6 +516,7 @@ to customer-behavior
     set color 112 + happiness
   ]
 
+  ]
   if happiness < -1 [
      die
   ]
@@ -1083,13 +1089,13 @@ end
 ; See Info tab for full copyright and license.
 @#$#@#$#@
 GRAPHICS-WINDOW
-212
-12
-740
-541
+215
+19
+874
+679
 -1
 -1
-8.0
+10.0
 1
 10
 1
@@ -1167,7 +1173,7 @@ number-of-customers
 number-of-customers
 0
 1000
-500.0
+430.0
 10
 1
 NIL
@@ -1189,10 +1195,10 @@ NIL
 HORIZONTAL
 
 PLOT
-751
-10
-1338
-167
+1397
+23
+1984
+180
 delivered
 NIL
 NIL
@@ -1207,10 +1213,10 @@ PENS
 "default" 60.0 1 -16777216 true "" "plot total-delivered"
 
 MONITOR
-790
-12
-934
-57
+1497
+614
+1641
+659
 time past (days h:mm)
 time_formatted
 2
@@ -1218,10 +1224,10 @@ time_formatted
 11
 
 PLOT
-752
-175
-1339
-323
+1398
+188
+1985
+336
 ordered
 NIL
 NIL
@@ -1291,10 +1297,10 @@ NIL
 HORIZONTAL
 
 PLOT
-752
-329
-1340
-502
+1398
+342
+1986
+515
 total_discarded
 NIL
 NIL
