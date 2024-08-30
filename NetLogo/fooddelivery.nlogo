@@ -52,14 +52,12 @@ globals[
   end-of-week-tick?
   end-of-hour-tick?
   end-of-day-tick?
-
 ]
 
 breed [ deliverers deliverer ]
 breed [ restaurants restaurant]
 breed [ customers customer ]
 breed [ meals meal ]
-
 
 deliverers-own[
   is-free?
@@ -78,7 +76,6 @@ deliverers-own[
   deliver-ycor
   intersection-dir
   delivery-direction ; "restaurant" or "customer"
-
 ]
 
 
@@ -151,7 +148,6 @@ to setup
   print (word "wait_for_deliverer " wait_for_deliverer )
   print (word "order_frequency "  order_frequency)
   print (word "distribution_method " distribution_method)
-
 end
 
 to go
@@ -264,17 +260,15 @@ to all-customers-behaviors
 end
 
 to all-meals
-  ask meals [
-
-
-    if status_delete_it? [
+  ask meals
+  [
+    if status_delete_it?
+    [
       die
     ]
 
-
-
-
-    if status_delivered? [
+    if status_delivered?
+    [
       if restaurant_nr != nobody
       [
         ask restaurant_nr
@@ -286,29 +280,29 @@ to all-meals
     ]
 
     let minutes_from_order (ticks - tick_ordered)
-    if minutes_from_order =  prepair_time [ ;; after some minutes it is ready to be picked up
+    if minutes_from_order =  prepair_time
+    [ ;; after some minutes it is ready to be picked up
       change_meal_status "ready"
       set color green
     ]
-    if status_ready? and minutes_from_order = (wait_for_deliverer + prepair_time) [;; after 20 minutes and no pickup it is expired
+    if status_ready? and minutes_from_order = (wait_for_deliverer + prepair_time)
+    [;; after 20 minutes and no pickup it is expired
       change_meal_status "expired"
     ]
 
-
-
-    if status_expired?   [
+    if status_expired?
+    [
       set discarded_this_tick  ( discarded_this_tick + 1 )
       set total_discarded ( total_discarded + 1)
       set total-discarded-all-time (  total-discarded-all-time + 1)
       if restaurant_nr != nobody
-      [ask restaurant_nr [
-         set  meals-discarded-last-week ( meals-discarded-last-week + 1)
-      ]
+      [
+        ask restaurant_nr
+        [
+            set  meals-discarded-last-week ( meals-discarded-last-week + 1)
+        ]
       ]
     ]
-
-
-
   ]
 end
 
@@ -358,26 +352,31 @@ to change_meal_status [#s]
       set status_delete_it? false
     ]
   )
-
 end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; all deliverer behavior rules ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 to deliverer-behavior
-  if is-free? and distribution_method = "nearest_meal" [
+  if is-free? and distribution_method = "nearest_meal"
+  [
     find-a-delivery  ;; distribution of meals
   ]
 
-  if is-free? and distribution_method = "equally_distributed" [
-    if lowest_number_deliverd = number-delivered [
+  if is-free? and distribution_method = "equally_distributed"
+  [
+    if lowest_number_deliverd = number-delivered
+    [
       find-a-delivery
     ]
   ]
 
-  if end-of-week-tick? [ ;; after each week
-    if number-delivered-past-week < 15 and deliverers_may_quit [
-      if (random-float 1) < 0.50 [
+  if end-of-week-tick?
+  [ ;; after each week
+    if number-delivered-past-week < 15 and deliverers_may_quit
+    [
+      if (random-float 1) < 0.50
+      [
         die
       ]
     ]
@@ -385,11 +384,12 @@ to deliverer-behavior
   ]
 
   let deliverer_itself self
-  if not is-free? [
-
+  if not is-free?
+  [
     let meal_for_deliverer meal_nr ;; this uses the fact that all agents have a unique number in NetLogo
 
-    ifelse meal_for_deliverer = nobody [ ;; the meal has expired
+    ifelse meal_for_deliverer = nobody
+    [ ;; the meal has expired
       set is-free? true
       show (word "meal cancelled by restaurant " meal_nr)
       set color white
@@ -397,8 +397,6 @@ to deliverer-behavior
     ]
 
     [
-
-
     let picked-up? false
     let delivered? false ;; check neigbors
     let wait_at_restaurant? false
