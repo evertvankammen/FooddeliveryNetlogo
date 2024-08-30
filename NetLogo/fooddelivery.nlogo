@@ -27,6 +27,9 @@ globals[
   row-green?
   col-green?
   restaurants-with-meal
+  total-delivered-all-time
+  total-discarded-all-time
+
   total-delivered
   total_delivered_prev
   total_ordered
@@ -46,6 +49,9 @@ globals[
   weeknumber
   delivered_per_week
   average_number_deliveries_per_week
+  end-of-week-tick?
+  end-of-hour-tick?
+  end-of-day-tick?
 
 ]
 
@@ -81,6 +87,8 @@ restaurants-own[
   meals-to-be-delivered
   meals-claimed
   meal-delivery-time ; number of ticks a meal is still deliverable
+  meals-discarded-last-week
+  meals-delivered-last-week
 ]
 
 customers-own[
@@ -103,6 +111,7 @@ meals-own [
   status_in_transit?
   status_delivered?
   status_expired?
+  status_delete_it?
 ]
 
 patches-own[
@@ -148,22 +157,46 @@ end
 to go
   ifelse setup-complete > 0 [
 
-
+  if not any? deliverers [ stop ]
+  if not any? customers [ stop ]
+  if not any? restaurants [ stop ]
 
   update_time
+
+  if end-of-day-tick?
+    [
+      set total_ordered 0
+      set total-delivered 0
+      set total_discarded 0
+    ]
+
+  if end-of-week-tick?
+    [
+      set average_number_deliveries_per_week  (delivered_per_week / (count deliverers))
+      set weeknumber (weeknumber  + 1)
+      set delivered_per_week 0
+    ]
+
+  if end-of-hour-tick?
+    [
+      set delivered_past_hour  (total-delivered - total_delivered_prev)
+      set total_delivered_prev total-delivered
+    ]
+
   set ordered_this_tick 0
   set delivered_this_tick 0
   set discarded_this_tick 0
-  set chance_of_this_tick (get_chance_minute time_minutes_of_day)
+  set chance_of_this_tick (get_ordering_pobability_a_minute time_minutes_of_day)
 
   if prev_chance_of_this_tick != chance_of_this_tick
   [print (word "order probability changed: " time_formatted " " (precision chance_of_this_tick 6) )]
 
   report-current-phase
+
   all-customers-behaviors
   all-restaurants-behaviors
-  all-meals
   all-deliverers-behaviors
+  all-meals
 
   set prev_chance_of_this_tick chance_of_this_tick
   tick
@@ -191,24 +224,26 @@ to update_time
   if time_minutes < 10 [set minute_padding "0"]
   set time_hours_of_day (time_hours mod 24)
 
-  if time_hours_of_day = 0 and time_minutes = 0 [
-    set total_ordered 0
-    set total-delivered 0
-    set total_discarded 0
+  ifelse time_hours_of_day = 0 and time_minutes = 0 [
+    set end-of-day-tick? true
+  ]
+  [
+     set end-of-day-tick? false
   ]
 
   set time_formatted (word time_days " " time_hours_of_day  ":" minute_padding time_minutes)
 
-  if time_minutes = 0 [
-      set delivered_past_hour  (total-delivered - total_delivered_prev)
-      set total_delivered_prev total-delivered
+  ifelse ticks > 0  and time_minutes = 0 [
+    set end-of-hour-tick? true
+  ]
+  [
+    set end-of-hour-tick? false
   ]
 
-  if ticks > 0  and (remainder ticks (60 * 24 * 7)) = 0 [
-    print "week is past"
-    set average_number_deliveries_per_week  (delivered_per_week / (count deliverers))
-    set weeknumber (weeknumber  + 1)
-    set delivered_per_week 0
+  ifelse ticks > 0  and (remainder ticks (60 * 24 * 7)) = 0 [
+    set end-of-week-tick? true
+  ][
+    set end-of-week-tick? false
   ]
 
 end
@@ -230,51 +265,28 @@ end
 
 to all-meals
   ask meals [
-    if distribution_method = "nearest_deliverer" and status_ordered? = true and deliverer_nr = -1[
-      print "nearest_deliverer"
-      let this_meal self
-      let free_deliverers deliverers with [is-free? = true]
-      let closest_deliverer min-one-of free_deliverers [distance self]
-
-      if closest_deliverer != nobody [
-        let x-res 0
-        let y-res 0
-        let restaurant_of_meal 0
-        let customer_of_meal 0
-
-        set deliverer_nr closest_deliverer
-        set x-res xcor
-        set y-res ycor
-        set restaurant_of_meal restaurant_nr
-        set customer_of_meal customer_nr
 
 
-        let x-cust 0
-        let y-cust 0
+    if status_delete_it? [
+      die
+    ]
 
-        ask customer_of_meal [
-          set x-cust xcor
-          set y-cust ycor
-        ]
 
-        ask closest_deliverer [
-          set meal_nr this_meal
-          set pickup-xcor x-res
-          set pickup-ycor y-res
-          set deliver-xcor x-cust
-          set deliver-ycor y-cust
-          set delivery-direction "restaurant"
-          set is-free?  false
-          set label (word pickup-xcor "," pickup-ycor)
-          set color red
-          show (word " has claimed  " this_meal  " from " restaurant_of_meal " and " customer_of_meal)
 
+
+    if status_delivered? [
+      if restaurant_nr != nobody
+      [
+        ask restaurant_nr
+        [
+          set  meals-delivered-last-week ( meals-delivered-last-week + 1)
+          show (word "meals deliverd " meals-delivered-last-week)
         ]
       ]
     ]
 
     let minutes_from_order (ticks - tick_ordered)
-    if minutes_from_order =  prepair_time [ ;; after 10 minutes it is ready to be picked up
+    if minutes_from_order =  prepair_time [ ;; after some minutes it is ready to be picked up
       change_meal_status "ready"
       set color green
     ]
@@ -282,13 +294,21 @@ to all-meals
       change_meal_status "expired"
     ]
 
-    if status_delivered? [
-       change_meal_status "delivered"
+
+
+    if status_expired?   [
+      set discarded_this_tick  ( discarded_this_tick + 1 )
+      set total_discarded ( total_discarded + 1)
+      set total-discarded-all-time (  total-discarded-all-time + 1)
+      if restaurant_nr != nobody
+      [ask restaurant_nr [
+         set  meals-discarded-last-week ( meals-discarded-last-week + 1)
+      ]
+      ]
     ]
-    if  status_expired? [
-       set discarded_this_tick  ( discarded_this_tick + 1 )
-       set total_discarded ( total_discarded + 1)
-    ]
+
+
+
   ]
 end
 
@@ -303,6 +323,7 @@ to change_meal_status [#s]
       set status_in_transit? false
       set status_delivered? false
       set status_expired? false
+      set status_delete_it? false
     ]
     #s = "ready" [
       set status_ordered? false
@@ -310,6 +331,7 @@ to change_meal_status [#s]
       set status_in_transit? false
       set status_delivered? false
       set status_expired? false
+      set status_delete_it? false
     ]
     #s = "in_transit" [
       set status_ordered? false
@@ -317,6 +339,7 @@ to change_meal_status [#s]
       set status_in_transit? true
       set status_delivered? false
       set status_expired? false
+      set status_delete_it? false
     ]
     #s = "delivered" [
       set status_ordered? false
@@ -324,6 +347,7 @@ to change_meal_status [#s]
       set status_in_transit? false
       set status_delivered? true
       set status_expired? false
+      set status_delete_it? false
     ]
     #s = "expired" [
       set status_ordered? false
@@ -331,6 +355,7 @@ to change_meal_status [#s]
       set status_in_transit? false
       set status_delivered? false
       set status_expired? true
+      set status_delete_it? false
     ]
   )
 
@@ -350,14 +375,14 @@ to deliverer-behavior
     ]
   ]
 
-  if ticks > 0 and (remainder ticks (60 * 24 * 7)) = 0 [
-    if number-delivered-past-week < 15 [
-      die
+  if end-of-week-tick? [ ;; after each week
+    if number-delivered-past-week < 15 and deliverers_may_quit [
+      if (random-float 1) < 0.50 [
+        die
+      ]
     ]
     set number-delivered-past-week 0
-
   ]
-
 
   let deliverer_itself self
   if not is-free? [
@@ -392,7 +417,6 @@ to deliverer-behavior
           [
             if restaurant_nr = restaurant_itself and status_ready? = true
             [
-
               ;;set status_in_transit? true
               set picked-up? true
               print (word deliverer_itself " picked-up meal nr. " meal_for_deliverer)
@@ -405,7 +429,6 @@ to deliverer-behavior
               set wait_at_restaurant? true
             ]
           ]
-
         ]
       ]
     ][
@@ -440,10 +463,11 @@ to deliverer-behavior
       set color white
       set delivered_this_tick ( delivered_this_tick + 1)
       set number-delivered-past-week (number-delivered-past-week + 1)
+      set total-delivered-all-time (total-delivered-all-time + 1)
 
       set delivered_per_week  (delivered_per_week + 1)
-      set total-delivered total-delivered + 1
-      set number-delivered number-delivered + 1
+      set total-delivered (total-delivered + 1)
+      set number-delivered (number-delivered + 1)
       let lowest_number_deliverd-prev lowest_number_deliverd
       set lowest_number_deliverd min [number-delivered] of deliverers
       set label (word "e:" number-delivered)
@@ -452,7 +476,7 @@ to deliverer-behavior
       if not wait_at_restaurant?[
         deliverers-move-to-location
       ]
-  ]
+    ]
 
    ]
 
@@ -461,9 +485,16 @@ end
 to restaurant-behavior
    let restaurant_itself self
    set label count meals with [restaurant_nr = restaurant_itself and status_delivered? = false and status_expired? = false]
+  if end-of-week-tick?  [
+    if meals-discarded-last-week > meals-delivered-last-week  or meals-delivered-last-week = 0
+    [ die ]
+    set meals-discarded-last-week 0
+    set meals-delivered-last-week 0
+  ]
+
 end
 
-to-report get_chance_minute [#x] ;distribution of orders
+to-report get_ordering_pobability_a_minute [#x] ;distribution of orders
   let _result 0
   (
     ifelse #x >= (7 * 60) and #x < (8 * 60) [
@@ -489,6 +520,14 @@ end
 
 to customer-behavior
   let customer_itself self
+
+  if end-of-week-tick?
+  [
+    let rest (one-of restaurants in-radius radius_allowed)
+    if rest = nobody [die]
+  ]
+
+
   if (order-outstanding? = false and (random-float 1) <= chance_of_this_tick) [
     order_meal
   ]
@@ -504,13 +543,17 @@ to customer-behavior
         show "expired"
         set happiness_loc (happiness_loc - 1)
         set ready_for_next? true
-        die
+        set status_delete_it? true
+        ;;die ;; delete the ordered meal
       ]
       if status_delivered? [
         show "delivered"
-        set happiness_loc (happiness_loc + 1)
+        ifelse happiness_loc < 1
+        [set  happiness_loc (happiness_loc + 1)]
+        [set happiness_loc 1]
         set ready_for_next? true
-        die
+        set status_delete_it? true
+        ;;die;; delete the ordered meal
       ]
 
     ]
@@ -532,13 +575,11 @@ to customer-behavior
    set color red
   ]
   [
-  if happiness >= 0 and happiness < 4 [
+  if happiness >= 0 [
     set color 106 - happiness
   ]
-  if happiness >= 4 [
-     set color 106 - 4
-  ]
-  if happiness < 0 [
+
+   if happiness < 0 [
     set color 112 + happiness
   ]
 
@@ -555,7 +596,10 @@ end
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 to order_meal
   let customer_itself self ;; the caller of this function
-  let selected_restaurant one-of restaurants ;; a random restuarant
+  let selected_restaurant one-of restaurants in-radius radius_allowed ; ; a random restaurant
+
+  ifelse selected_restaurant != nobody
+  [
   let meal_nr_loc -1
   hatch-meals 1 [ ;; create a meal
     set meal_nr_loc self
@@ -569,13 +613,14 @@ to order_meal
     set tick_ordered ticks
     set deliverer_nr -1
     change_meal_status "ordered"
+    set status_delete_it? false
     move-to selected_restaurant
     set prepair_time (int (random-normal prepair_time_mean prepair_time_stdev))
     if prepair_time < 0 [
-       set prepair_time 0
+       set prepair_time 0 ;; handle left side of normal distribution
     ]
     if prepair_time > 120 [
-       set prepair_time 120
+       set prepair_time 120 ;; handle right side of normal distribution
     ]
     set ordered_this_tick (ordered_this_tick + 1)
     set total_ordered (total_ordered + 1)
@@ -584,6 +629,10 @@ to order_meal
 
   set meal_nr meal_nr_loc
   set order-outstanding? true
+  ]
+  [
+    die
+  ]
 end
 
 
@@ -660,6 +709,10 @@ to setup-customers
     set meal_nr nobody
    ]
   ask customers [ move-to one-of building-locations with [not any? restaurants-on self and not any? customers-on self ] ]
+  ask customers [
+  let rest (one-of restaurants in-radius radius_allowed)
+  if rest = nobody [die]
+  ]
 end
 
 ;locations for buildings
@@ -1184,7 +1237,7 @@ number-of-restaurants
 number-of-restaurants
 1
 50
-10.0
+50.0
 1
 1
 NIL
@@ -1199,7 +1252,7 @@ number-of-customers
 number-of-customers
 0
 1000
-500.0
+270.0
 10
 1
 NIL
@@ -1214,7 +1267,7 @@ number-of-deliverers
 number-of-deliverers
 1
 80
-20.0
+55.0
 1
 1
 NIL
@@ -1223,7 +1276,7 @@ HORIZONTAL
 PLOT
 889
 21
-1476
+1120
 178
 delivered per day
 NIL
@@ -1250,10 +1303,10 @@ time_formatted
 11
 
 PLOT
-890
-186
-1477
-334
+1136
+22
+1457
+178
 ordered per day
 NIL
 NIL
@@ -1286,7 +1339,7 @@ prepair_time_mean
 prepair_time_mean
 5
 30
-15.0
+16.0
 1
 1
 NIL
@@ -1301,7 +1354,7 @@ wait_for_deliverer
 wait_for_deliverer
 10
 150
-90.0
+43.0
 1
 1
 NIL
@@ -1316,17 +1369,17 @@ prepair_time_stdev
 prepair_time_stdev
 0
 10
-5.0
+3.0
 1
 1
 NIL
 HORIZONTAL
 
 PLOT
-890
-340
-1478
-513
+886
+191
+1474
+364
 discarded per day
 NIL
 NIL
@@ -1347,7 +1400,7 @@ CHOOSER
 464
 distribution_method
 distribution_method
-"nearest_meal" "nearest_deliverer" "equally_distributed"
+"nearest_meal" "equally_distributed"
 0
 
 MONITOR
@@ -1417,10 +1470,10 @@ average_number_deliveries_per_week
 11
 
 PLOT
-891
-406
-1476
-556
+889
+374
+1474
+524
 average_number_deliveries_per_week
 NIL
 NIL
@@ -1433,6 +1486,51 @@ false
 "" ""
 PENS
 "default" 1.0 0 -16777216 true "" "plot average_number_deliveries_per_week"
+
+SWITCH
+4
+480
+173
+513
+deliverers_may_quit
+deliverers_may_quit
+0
+1
+-1000
+
+SLIDER
+3
+527
+175
+560
+radius_allowed
+radius_allowed
+1
+64
+31.0
+1
+1
+NIL
+HORIZONTAL
+
+PLOT
+1565
+120
+1765
+270
+plot 1
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -2139308 true "" "plot total-discarded-all-time"
+"pen-1" 1.0 0 -7500403 true "" "plot total-delivered-all-time"
 
 @#$#@#$#@
 ## WHAT IS IT?
