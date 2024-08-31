@@ -142,11 +142,10 @@ to setup
   reset-ticks
   set setup-complete 1
   print (word "number-of-restaurants " number-of-restaurants)
-  print (word "number-of-customers " number-of-customers )
+  print (word "number-of-customers " max-number-of-customers )
   print (word "number-of-deliverers " number-of-deliverers)
   print (word "prepair_time_mean " prepair_time_mean )
   print (word "wait_for_deliverer " wait_for_deliverer )
-  print (word "order_frequency "  order_frequency)
   print (word "distribution_method " distribution_method)
 end
 
@@ -220,7 +219,8 @@ to update_time
   if time_minutes < 10 [set minute_padding "0"]
   set time_hours_of_day (time_hours mod 24)
 
-  ifelse time_hours_of_day = 0 and time_minutes = 0 [
+  ifelse time_hours_of_day = 0 and time_minutes = 0
+  [
     set end-of-day-tick? true
   ]
   [
@@ -238,7 +238,8 @@ to update_time
 
   ifelse ticks > 0  and (remainder ticks (60 * 24 * 7)) = 0 [
     set end-of-week-tick? true
-  ][
+  ]
+  [
     set end-of-week-tick? false
   ]
 
@@ -373,7 +374,7 @@ to deliverer-behavior
 
   if end-of-week-tick?
   [ ;; after each week
-    if number-delivered-past-week < 15 and deliverers_may_quit
+    if number-delivered-past-week < 24 and deliverers_may_quit
     [
       if (random-float 1) < 0.50
       [
@@ -450,30 +451,34 @@ to deliverer-behavior
       ]
     ]
 
-    if picked-up? [
-       set delivery-direction "customer"
-       set color green
-       set label (word deliver-xcor "," deliver-ycor "e:" number-delivered)
+    if picked-up?
+      [
+        set delivery-direction "customer"
+        set color green
+        set label (word deliver-xcor "," deliver-ycor "e:" number-delivered)
+      ]
+
+    if delivered?
+      [
+        set is-free?  true
+        set color white
+        set delivered_this_tick ( delivered_this_tick + 1)
+        set number-delivered-past-week (number-delivered-past-week + 1)
+        set total-delivered-all-time (total-delivered-all-time + 1)
+
+        set delivered_per_week  (delivered_per_week + 1)
+        set total-delivered (total-delivered + 1)
+        set number-delivered (number-delivered + 1)
+        let lowest_number_deliverd-prev lowest_number_deliverd
+        set lowest_number_deliverd min [number-delivered] of deliverers
+        set label (word "e:" number-delivered)
     ]
 
-    if delivered? [
-      set is-free?  true
-      set color white
-      set delivered_this_tick ( delivered_this_tick + 1)
-      set number-delivered-past-week (number-delivered-past-week + 1)
-      set total-delivered-all-time (total-delivered-all-time + 1)
-
-      set delivered_per_week  (delivered_per_week + 1)
-      set total-delivered (total-delivered + 1)
-      set number-delivered (number-delivered + 1)
-      let lowest_number_deliverd-prev lowest_number_deliverd
-      set lowest_number_deliverd min [number-delivered] of deliverers
-      set label (word "e:" number-delivered)
-    ]
-
-      if not wait_at_restaurant?[
+    if not wait_at_restaurant?
+      [
         deliverers-move-to-location
       ]
+
     ]
 
    ]
@@ -481,11 +486,14 @@ to deliverer-behavior
 end
 
 to restaurant-behavior
-   let restaurant_itself self
-   set label count meals with [restaurant_nr = restaurant_itself and status_delivered? = false and status_expired? = false]
-  if end-of-week-tick?  [
-    if meals-discarded-last-week > meals-delivered-last-week  or meals-delivered-last-week = 0
-    [ die ]
+  let restaurant_itself self
+  set label count meals with [restaurant_nr = restaurant_itself and status_delivered? = false and status_expired? = false]
+  if end-of-week-tick?
+  [
+    if meals-discarded-last-week > meals-delivered-last-week
+    [
+      die
+    ]
     set meals-discarded-last-week 0
     set meals-delivered-last-week 0
   ]
@@ -495,24 +503,26 @@ end
 to-report get_ordering_pobability_a_minute [#x] ;distribution of orders
   let _result 0
   (
-    ifelse #x >= (7 * 60) and #x < (8 * 60) [
-     set _result ( 2 / (24 * 60 * 1))
+    ifelse #x >= (7 * 60) and #x < (8 * 60)
+    [
+      set _result ( 2 / (24 * 60 * 1))
     ]
 
-     #x >= (12 * 60) and #x < (13 * 60) [
+    #x >= (12 * 60) and #x < (13 * 60)
+    [
      set _result ( 4 / (24 * 60 * 1))
     ]
 
-     #x >= (18 * 60) and #x < (20 * 60) [
-     set _result ( 12  / (24 * 60 * 2))
+    #x >= (18 * 60) and #x < (20 * 60)
+    [
+      set _result ( 12  / (24 * 60 * 2))
     ]
     [
       set _result ( 6 / ( 24 * 60 * 20 ))
     ]
   )
-  ifelse order_frequency = "once a day"
-  [report ( _result)]
-  [report ( _result / 7)]
+
+  report ( _result / 7)
 end
 
 
@@ -526,7 +536,8 @@ to customer-behavior
   ]
 
 
-  if (order-outstanding? = false and (random-float 1) <= chance_of_this_tick) [
+  if (order-outstanding? = false and (random-float 1) <= chance_of_this_tick)
+  [
     order_meal
   ]
   let ready_for_next? false
@@ -699,7 +710,7 @@ to setup-restaurants
 end
 
 to setup-customers
-  create-customers number-of-customers [
+  create-customers max-number-of-customers [
     set color 106
     set size 3
     set shape "house efficiency"
@@ -1235,7 +1246,7 @@ number-of-restaurants
 number-of-restaurants
 1
 50
-50.0
+10.0
 1
 1
 NIL
@@ -1244,13 +1255,13 @@ HORIZONTAL
 SLIDER
 5
 139
-178
+177
 172
-number-of-customers
-number-of-customers
+max-number-of-customers
+max-number-of-customers
 0
 1000
-270.0
+500.0
 10
 1
 NIL
@@ -1265,7 +1276,7 @@ number-of-deliverers
 number-of-deliverers
 1
 80
-55.0
+20.0
 1
 1
 NIL
@@ -1318,16 +1329,6 @@ false
 PENS
 "default" 1.0 0 -16777216 true "" "plot total_ordered"
 
-CHOOSER
-5
-364
-143
-409
-order_frequency
-order_frequency
-"once a day" "once a week"
-1
-
 SLIDER
 5
 229
@@ -1337,7 +1338,7 @@ prepair_time_mean
 prepair_time_mean
 5
 30
-16.0
+15.0
 1
 1
 NIL
@@ -1352,7 +1353,7 @@ wait_for_deliverer
 wait_for_deliverer
 10
 150
-43.0
+60.0
 1
 1
 NIL
@@ -1367,7 +1368,7 @@ prepair_time_stdev
 prepair_time_stdev
 0
 10
-3.0
+5.0
 1
 1
 NIL
@@ -1505,7 +1506,7 @@ radius_allowed
 radius_allowed
 1
 64
-31.0
+32.0
 1
 1
 NIL
