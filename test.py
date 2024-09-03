@@ -135,18 +135,6 @@ def run_vary_waittimes_25():
     week(nr_deliverers=25, distribution_method="nearest_meal", filename_extra="nd_3_",radius_allowed=32,wait_time_for_deliverer=60)
 
 
-def run_vary_waittimes_50_wait():
-    week(nr_deliverers=50, distribution_method="nearest_deliverer", filename_extra="nd_1_", wait_time_for_deliverer=30)
-    week(nr_deliverers=50, distribution_method="nearest_deliverer", filename_extra="nd_2_", wait_time_for_deliverer=60)
-    week(nr_deliverers=50, distribution_method="nearest_deliverer", filename_extra="nd_3_", wait_time_for_deliverer=90)
-
-
-def run_vary_waittimes_25_wait():
-    week(nr_deliverers=25, distribution_method="nearest_deliverer", filename_extra="nd_1_", wait_time_for_deliverer=30)
-    week(nr_deliverers=25, distribution_method="nearest_deliverer", filename_extra="nd_2_", wait_time_for_deliverer=60)
-    week(nr_deliverers=25, distribution_method="nearest_deliverer", filename_extra="nd_3_", wait_time_for_deliverer=90)
-
-
 def ten_weeks(nr_restaurants=10, nr_customers=500, nr_deliverers=15, preparation_mean_time=15,
               wait_time_for_deliverer=30, distribution_method="equally_distributed", deliverers_may_quit="false",
               radius_allowed=32):
